@@ -1,9 +1,22 @@
 [project]
 name = "palm92-repoguard"
-version = "0.1.0"
+version = "0.2.0"
 description = "Offline-first human-governed software engineering agent powered by Gemma 4."
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+gemma = [
+  "transformers>=4.56",
+  "torch",
+  "accelerate",
+]
+dev = [
+  "pytest>=8",
+]
+
+[project.scripts]
+repoguard = "repoguard.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
