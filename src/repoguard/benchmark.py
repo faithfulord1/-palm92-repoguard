@@ -29,6 +29,7 @@ class BenchmarkConfig:
     prompt_version: str
     max_steps: int = 12
     isolate_repositories: bool = True
+    approval_policy: str = "auto_low_risk"
 
 
 class BenchmarkRunner:
@@ -50,7 +51,11 @@ class BenchmarkRunner:
         agent = RepoGuardAgent(str(repo_path), model)
 
         started = time.perf_counter()
-        result = agent.repair(task.issue, max_steps=self.config.max_steps)
+        result = agent.repair(
+            task.issue,
+            max_steps=self.config.max_steps,
+            approval_policy=self.config.approval_policy,
+        )
         elapsed = time.perf_counter() - started
 
         pending = agent.pending_changes()
@@ -88,6 +93,7 @@ class BenchmarkRunner:
             metadata={
                 **task.metadata,
                 "isolation_enabled": self.config.isolate_repositories,
+                "approval_policy": self.config.approval_policy,
             },
         )
         self.logger.append(record)
