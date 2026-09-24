@@ -19,6 +19,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--experiment-id", default="baseline-v001")
     parser.add_argument("--prompt-version", default="v0.7")
     parser.add_argument("--max-steps", type=int, default=12)
+    parser.add_argument(
+        "--approval-policy",
+        choices=("manual", "auto_low_risk"),
+        default="auto_low_risk",
+        help="Auto-approval is intended only for isolated benchmark copies.",
+    )
     parser.add_argument("--log-out", default="artifacts/benchmark-runs.jsonl")
     parser.add_argument("--summary-out", default="artifacts/benchmark-summary.json")
     return parser
@@ -40,6 +46,7 @@ def main() -> int:
             model_variant=args.variant,
             prompt_version=args.prompt_version,
             max_steps=args.max_steps,
+            approval_policy=args.approval_policy,
         ),
         model_factory=factory,
         log_path=args.log_out,
