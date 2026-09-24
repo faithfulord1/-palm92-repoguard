@@ -117,9 +117,12 @@ Allowed actions:
 {"action":"final","status":"fixed|blocked|not_fixed","summary":"concise summary"}
 
 Rules:
-- Read before editing.
+- Read relevant implementation and tests before editing.
 - Prefer the smallest relevant change.
-- Use test feedback before declaring success.
+- After a write, use the test feedback immediately.
+- If tests pass, stop and report fixed.
+- If tests fail, inspect the failure and revise rather than repeating the same action.
+- You have a limited step budget, so avoid unnecessary list/search loops.
 - Never invent tool output.
 """
 
@@ -206,6 +209,39 @@ Rules:
                         path=approved.path,
                         policy="auto_low_risk",
                     )
+
+                    last_tests = self.tools.run_tests()
+                    test_observation = {"type": "test_after_write", **last_tests}
+                    observation["test_result"] = test_observation
+                    self.audit.record(
+                        "automatic_verification",
+                        proposal_id=approved.proposal_id,
+                        path=approved.path,
+                        returncode=last_tests.get("returncode"),
+                    )
+
+                    if last_tests.get("returncode") == 0:
+                        summary = (
+                            f"Verified fix after updating {approved.path}; "
+                            "the repository test suite passed."
+                        )
+                        self.audit.record(
+                            "repair_finished",
+                            status="fixed",
+                            summary=summary,
+                            steps=step,
+                            verification="automatic_post_write_test",
+                        )
+                        return RepairResult(
+                            issue=issue,
+                            status="fixed",
+                            summary=summary,
+                            touched_files=touched_files,
+                            tests=last_tests,
+                            approval_required=approval_required,
+                            steps=step,
+                            audit=self.audit.to_dict(),
+                        )
                 else:
                     approval_required = True
                     observation = {
