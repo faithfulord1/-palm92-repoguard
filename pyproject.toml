@@ -1,6 +1,6 @@
 [project]
 name = "palm92-repoguard"
-version = "0.7.1"
+version = "0.8.0"
 description = "Offline-first human-governed software engineering agent powered by Gemma 4."
 requires-python = ">=3.11"
 dependencies = []
