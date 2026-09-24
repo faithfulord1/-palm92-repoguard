@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    {
+      "task_id": "demo-divide-001",
+      "repo_path": "examples/buggy_repo",
+      "issue": "The divide function returns the wrong result. divide(10, 2) should return 5.",
+      "metadata": {
+        "language": "python",
+        "category": "logic_bug",
+        "difficulty": "easy"
+      }
+    }
+  ]
+}
