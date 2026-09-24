@@ -7,6 +7,7 @@ from typing import Protocol, Any
 from .audit import AuditLedger
 from .risk import assess_path_risk
 from .tools import RepoTools
+from .review import ApprovalQueue
 
 
 class ModelAdapter(Protocol):
@@ -39,6 +40,7 @@ class RepoGuardAgent:
         self.tools = RepoTools(repo_root)
         self.model = model
         self.audit = AuditLedger()
+        self.approvals = ApprovalQueue(self.tools)
 
     def investigate(self, issue: str) -> AgentResult:
         self.audit.record("issue_received", issue=issue)
@@ -140,25 +142,26 @@ Rules:
                 observation = {"type": "test", **last_tests}
             elif kind == "write":
                 path = str(action["path"])
-                risk = assess_path_risk(path)
-                if risk["level"] == "high":
-                    approval_required = True
-                    observation = {
-                        "type": "write_blocked",
-                        "path": path,
-                        "message": "Human approval required before this write.",
-                    }
-                    self.audit.record("human_gate_enabled", path=path, reason=risk["reason"])
-                else:
-                    self.tools.write_file(path, str(action["content"]))
-                    if path not in touched_files:
-                        touched_files.append(path)
-                    observation = {
-                        "type": "write_applied",
-                        "path": path,
-                        "reason": action.get("reason", ""),
-                    }
-                    self.audit.record("file_written", path=path)
+                proposal = self.approvals.propose(
+                    path,
+                    str(action["content"]),
+                    str(action.get("reason", "")),
+                )
+                approval_required = True
+                observation = {
+                    "type": "change_proposed",
+                    "proposal_id": proposal.proposal_id,
+                    "path": proposal.path,
+                    "risk": proposal.risk,
+                    "diff": proposal.diff,
+                    "message": "Change staged. Human approval is required before applying it.",
+                }
+                self.audit.record(
+                    "change_proposed",
+                    proposal_id=proposal.proposal_id,
+                    path=proposal.path,
+                    risk=proposal.risk,
+                )
             elif kind == "final":
                 status = str(action.get("status", "not_fixed"))
                 summary = str(action.get("summary", ""))
@@ -189,3 +192,25 @@ Rules:
             steps=max_steps,
             audit=self.audit.to_dict(),
         )
+
+
+    def approve_change(self, proposal_id: int) -> dict[str, Any]:
+        proposal = self.approvals.approve(proposal_id)
+        self.audit.record(
+            "change_approved",
+            proposal_id=proposal.proposal_id,
+            path=proposal.path,
+        )
+        return proposal.to_dict()
+
+    def reject_change(self, proposal_id: int) -> dict[str, Any]:
+        proposal = self.approvals.reject(proposal_id)
+        self.audit.record(
+            "change_rejected",
+            proposal_id=proposal.proposal_id,
+            path=proposal.path,
+        )
+        return proposal.to_dict()
+
+    def pending_changes(self) -> list[dict[str, Any]]:
+        return [proposal.to_dict() for proposal in self.approvals.pending()]
