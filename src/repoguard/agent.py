@@ -81,31 +81,16 @@ Do not claim to have read files that have not been supplied.
             audit=self.audit.to_dict(),
         )
 
-    def repair(
-        self,
-        issue: str,
-        *,
-        max_steps: int = 12,
-        allow_low_risk_writes: bool = True,
-    ) -> RepairResult:
-        """Run a bounded JSON-action loop.
-
-        The model may request list/read/search/test/write/final actions.
-        Sensitive writes are never applied automatically.
-        """
-
+    def repair(self, issue: str, *, max_steps: int = 12) -> RepairResult:
         files = self.tools.list_files()
         self.audit.record("repair_started", issue=issue, file_count=len(files))
-
         observations: list[dict[str, Any]] = []
         touched_files: list[str] = []
         last_tests: dict[str, object] | None = None
         approval_required = False
-        summary = ""
-        status = "max_steps_reached"
 
         system = """You are RepoGuard, an evidence-driven software repair agent.
-Choose exactly one action per turn and output ONLY valid JSON.
+Output exactly one JSON action per turn.
 
 Allowed actions:
 {"action":"list"}
@@ -113,125 +98,91 @@ Allowed actions:
 {"action":"search","query":"text"}
 {"action":"test"}
 {"action":"write","path":"relative/path.py","content":"COMPLETE replacement file content","reason":"why"}
-{"action":"final","status":"fixed|blocked|not_fixed","summary":"concise evidence-based summary"}
+{"action":"final","status":"fixed|blocked|not_fixed","summary":"concise summary"}
 
 Rules:
-- Read relevant files before editing them.
-- Prefer the smallest change that addresses the issue.
-- Never invent tool results.
-- Use test feedback before declaring fixed.
-- Sensitive writes may be blocked for human approval.
+- Read before editing.
+- Prefer the smallest relevant change.
+- Use test feedback before declaring success.
+- Never invent tool output.
 """
 
         for step in range(1, max_steps + 1):
-            context = {
-                "issue": issue,
-                "repository_files": files[:300],
-                "recent_observations": observations[-8:],
-                "touched_files": touched_files,
-            }
-            raw = self.model.generate(
-                system=system,
-                prompt=json.dumps(context, indent=2),
+            prompt = json.dumps(
+                {
+                    "issue": issue,
+                    "repository_files": files[:300],
+                    "recent_observations": observations[-8:],
+                    "touched_files": touched_files,
+                },
+                indent=2,
             )
+            raw = self.model.generate(system=system, prompt=prompt)
             self.audit.record("model_action", step=step, raw=raw)
 
             try:
                 action = json.loads(raw)
             except json.JSONDecodeError:
-                observations.append({
-                    "type": "error",
-                    "message": "Model returned invalid JSON. Return one valid action object only.",
-                })
-                self.audit.record("invalid_model_json", step=step)
+                observations.append({"type": "error", "message": "Invalid JSON action."})
                 continue
 
             kind = action.get("action")
-
-            try:
-                if kind == "list":
-                    observation = {"type": "list", "files": files[:300]}
-
-                elif kind == "read":
-                    path = str(action["path"])
-                    content = self.tools.read_file(path)
-                    observation = {"type": "read", "path": path, "content": content}
-
-                elif kind == "search":
-                    query = str(action["query"])
-                    hits = self.tools.search_text(query)
-                    observation = {"type": "search", "query": query, "hits": hits}
-
-                elif kind == "test":
-                    last_tests = self.tools.run_tests()
-                    observation = {"type": "test", **last_tests}
-
-                elif kind == "write":
-                    path = str(action["path"])
-                    risk = assess_path_risk(path)
-                    if risk["level"] == "high" or not allow_low_risk_writes:
-                        approval_required = True
-                        observation = {
-                            "type": "write_blocked",
-                            "path": path,
-                            "risk": risk,
-                            "message": "Human approval required before this write.",
-                        }
-                        self.audit.record(
-                            "human_gate_enabled",
-                            path=path,
-                            reason=risk["reason"],
-                        )
-                    else:
-                        content = str(action["content"])
-                        self.tools.write_file(path, content)
-                        if path not in touched_files:
-                            touched_files.append(path)
-                        observation = {
-                            "type": "write_applied",
-                            "path": path,
-                            "risk": risk,
-                            "reason": action.get("reason", ""),
-                        }
-                        self.audit.record("file_written", path=path, risk=risk)
-
-                elif kind == "final":
-                    status = str(action.get("status", "not_fixed"))
-                    summary = str(action.get("summary", ""))
-                    self.audit.record(
-                        "repair_finished",
-                        status=status,
-                        summary=summary,
-                        steps=step,
-                    )
-                    return RepairResult(
-                        issue=issue,
-                        status=status,
-                        summary=summary,
-                        touched_files=touched_files,
-                        tests=last_tests,
-                        approval_required=approval_required,
-                        steps=step,
-                        audit=self.audit.to_dict(),
-                    )
-
-                else:
+            if kind == "list":
+                observation = {"type": "list", "files": files[:300]}
+            elif kind == "read":
+                path = str(action["path"])
+                observation = {"type": "read", "path": path, "content": self.tools.read_file(path)}
+            elif kind == "search":
+                query = str(action["query"])
+                observation = {"type": "search", "query": query, "hits": self.tools.search_text(query)}
+            elif kind == "test":
+                last_tests = self.tools.run_tests()
+                observation = {"type": "test", **last_tests}
+            elif kind == "write":
+                path = str(action["path"])
+                risk = assess_path_risk(path)
+                if risk["level"] == "high":
+                    approval_required = True
                     observation = {
-                        "type": "error",
-                        "message": f"Unknown action: {kind}",
+                        "type": "write_blocked",
+                        "path": path,
+                        "message": "Human approval required before this write.",
                     }
-
-            except (KeyError, ValueError, FileNotFoundError) as exc:
-                observation = {"type": "tool_error", "message": str(exc)}
+                    self.audit.record("human_gate_enabled", path=path, reason=risk["reason"])
+                else:
+                    self.tools.write_file(path, str(action["content"]))
+                    if path not in touched_files:
+                        touched_files.append(path)
+                    observation = {
+                        "type": "write_applied",
+                        "path": path,
+                        "reason": action.get("reason", ""),
+                    }
+                    self.audit.record("file_written", path=path)
+            elif kind == "final":
+                status = str(action.get("status", "not_fixed"))
+                summary = str(action.get("summary", ""))
+                self.audit.record("repair_finished", status=status, summary=summary, steps=step)
+                return RepairResult(
+                    issue=issue,
+                    status=status,
+                    summary=summary,
+                    touched_files=touched_files,
+                    tests=last_tests,
+                    approval_required=approval_required,
+                    steps=step,
+                    audit=self.audit.to_dict(),
+                )
+            else:
+                observation = {"type": "error", "message": f"Unknown action: {kind}"}
 
             observations.append(observation)
             self.audit.record("tool_observation", step=step, observation=observation)
 
-        self.audit.record("repair_finished", status=status, summary=summary, steps=max_steps)
         return RepairResult(
             issue=issue,
-            status=status,
-            summary=summary,
+            status="max_steps_reached",
+            summary="Agent stopped at the configured step limit.",
             touched_files=touched_files,
             tests=last_tests,
             approval_required=approval_required,
