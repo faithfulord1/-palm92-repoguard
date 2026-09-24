@@ -6,7 +6,7 @@ RepoGuard is designed to turn Gemma 4 into a repository-aware coding agent that 
 
 ## Open the first real Gemma experiment
 
-[Open RepoGuard v0.7 directly in Google Colab](https://colab.research.google.com/github/faithfulord1/palm92-repoguard/blob/main/notebooks/RepoGuard_v0_7_First_Real_Gemma_Baseline.ipynb)
+[Open RepoGuard v0.7.1 adaptive baseline directly in Google Colab](https://colab.research.google.com/github/faithfulord1/palm92-repoguard/blob/main/notebooks/RepoGuard_v0_7_1_Adaptive_Gemma_Baseline.ipynb)
 
 After Colab opens:
 
@@ -19,7 +19,7 @@ After Colab opens:
 
 Issue → Repository Scan → File Selection → Fix Plan → Patch Preview → Risk Review → Human Approval / Isolated Benchmark Policy → Tests → Evidence Report
 
-## Current project stage: v0.7
+## Current project stage: v0.7.1
 
 RepoGuard now includes:
 
@@ -72,4 +72,4 @@ Raw experiment outputs are stored under `artifacts/` during execution. Raw JSONL
 
 ## Status
 
-v0.7 prepared September 2026. The next milestone begins after the first measured Gemma baseline run.
+v0.7.1 prepared September 2026. E4B is preferred when sufficient GPU memory is available, with E2B as the lower-memory fallback.
