@@ -39,10 +39,12 @@ class TransformersGemmaAdapter:
         *,
         max_new_tokens: int = 700,
         temperature: float = 0.2,
+        load_in_4bit: bool = False,
     ) -> None:
         self.model_id = model_id
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
+        self.load_in_4bit = load_in_4bit
         self._processor: Any | None = None
         self._model: Any | None = None
 
@@ -60,10 +62,28 @@ class TransformersGemmaAdapter:
             ) from exc
 
         self._processor = AutoProcessor.from_pretrained(self.model_id)
+
+        model_kwargs = {
+            "dtype": "auto",
+            "device_map": "auto",
+        }
+        if self.load_in_4bit:
+            try:
+                from transformers import BitsAndBytesConfig
+                model_kwargs["quantization_config"] = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+                    bnb_4bit_use_double_quant=True,
+                )
+            except ImportError as exc:
+                raise RuntimeError(
+                    "4-bit mode requires bitsandbytes. Install the Gemma extras again."
+                ) from exc
+
         self._model = AutoModelForMultimodalLM.from_pretrained(
             self.model_id,
-            dtype="auto",
-            device_map="auto",
+            **model_kwargs,
         )
         self._model.eval()
 
