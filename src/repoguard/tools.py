@@ -2,6 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 
+
 class RepoTools:
     def __init__(self, repo_root: str | Path) -> None:
         self.root = Path(repo_root).resolve()
@@ -12,7 +13,12 @@ class RepoTools:
             raise ValueError("Path escapes repository root")
         return target
 
-    def list_files(self, suffixes: tuple[str, ...] = (".py", ".js", ".ts", ".tsx", ".md")) -> list[str]:
+    def list_files(
+        self,
+        suffixes: tuple[str, ...] = (
+            ".py", ".js", ".ts", ".tsx", ".md", ".json", ".yml", ".yaml", ".toml"
+        ),
+    ) -> list[str]:
         results = []
         for path in self.root.rglob("*"):
             if path.is_file() and path.suffix in suffixes and ".git" not in path.parts:
@@ -21,6 +27,11 @@ class RepoTools:
 
     def read_file(self, relative_path: str, max_chars: int = 30000) -> str:
         return self._safe(relative_path).read_text(encoding="utf-8")[:max_chars]
+
+    def write_file(self, relative_path: str, content: str) -> None:
+        target = self._safe(relative_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
 
     def search_text(self, query: str, max_results: int = 50) -> list[dict[str, object]]:
         hits = []
