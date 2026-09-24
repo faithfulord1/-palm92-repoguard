@@ -1,0 +1,19 @@
+{
+  "experiment_id": "baseline-v001",
+  "model": "gemma-4-TBD",
+  "checkpoint": "base-or-finetuned-TBD",
+  "task_set": "TBD",
+  "features": {
+    "repo_search_tools": false,
+    "plan_before_edit": false,
+    "test_feedback_loop": false,
+    "risk_gate": false
+  },
+  "metrics": [
+    "task_success",
+    "tests_passed",
+    "files_modified",
+    "tool_calls",
+    "latency_seconds"
+  ]
+}
