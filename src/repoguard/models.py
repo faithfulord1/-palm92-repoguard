@@ -103,3 +103,18 @@ class TransformersGemmaAdapter:
         input_len = inputs["input_ids"].shape[-1]
         generated = outputs[0][input_len:]
         return self._processor.decode(generated, skip_special_tokens=True).strip()
+
+
+@dataclass
+class ScriptedModelAdapter:
+    """Test adapter that returns a predefined sequence of model actions."""
+
+    responses: list[str]
+    index: int = 0
+
+    def generate(self, *, system: str, prompt: str) -> str:
+        if self.index >= len(self.responses):
+            return '{"action":"final","status":"not_fixed","summary":"No scripted response left."}'
+        response = self.responses[self.index]
+        self.index += 1
+        return response
