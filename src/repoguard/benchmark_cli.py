@@ -16,6 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--backend", choices=("mock", "gemma"), default="mock")
     parser.add_argument("--model-id", default="google/gemma-4-E4B-it")
     parser.add_argument("--variant", default="base")
+    parser.add_argument("--load-in-4bit", action="store_true")
     parser.add_argument("--experiment-id", default="baseline-v001")
     parser.add_argument("--prompt-version", default="v0.7")
     parser.add_argument("--max-steps", type=int, default=12)
@@ -35,7 +36,7 @@ def main() -> int:
     tasks = load_tasks(args.tasks)
 
     if args.backend == "gemma":
-        factory = lambda: TransformersGemmaAdapter(model_id=args.model_id)
+        factory = lambda: TransformersGemmaAdapter(model_id=args.model_id, load_in_4bit=args.load_in_4bit)
     else:
         factory = lambda: MockModelAdapter()
 
