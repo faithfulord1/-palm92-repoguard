@@ -21,7 +21,7 @@ def main() -> int:
         "repoguard-benchmark",
         "benchmarks/v0.6_tasks.json",
         "--backend", "gemma",
-        "--model-id", "google/gemma-4-12B",
+        "--model-id", "google/gemma-4-12B-it",
         "--variant", "base",
         "--experiment-id", "baseline-v001",
         "--prompt-version", "v0.7",
