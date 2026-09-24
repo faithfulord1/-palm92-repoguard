@@ -4,6 +4,18 @@
 
 RepoGuard is designed to turn Gemma 4 into a repository-aware coding agent that can inspect a codebase, reason about an issue, propose a patch, run tests, assess risk, and produce an auditable evidence trail with human governance.
 
+## Recommended first real run
+
+Because the 12B checkpoint needs more GPU memory, start with the lighter adaptive baseline:
+
+[Open RepoGuard v0.7 Lite directly in Google Colab](https://colab.research.google.com/github/faithfulord1/palm92-repoguard/blob/main/notebooks/RepoGuard_v0_7_Lite_Gemma_Baseline.ipynb)
+
+The notebook uses:
+- Gemma 4 E4B instruction-tuned in 4-bit mode on suitable GPUs
+- Gemma 4 E2B instruction-tuned as an automatic fallback on smaller GPUs
+- isolated benchmark copies
+- raw JSONL evidence logging
+
 ## Open the first real Gemma experiment
 
 [Open RepoGuard v0.7.1 adaptive baseline directly in Google Colab](https://colab.research.google.com/github/faithfulord1/palm92-repoguard/blob/main/notebooks/RepoGuard_v0_7_1_Adaptive_Gemma_Baseline.ipynb)
