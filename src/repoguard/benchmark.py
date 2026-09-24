@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import json
 from pathlib import Path
+import shutil
 import statistics
+import tempfile
 import time
 from typing import Callable, Any
 
@@ -26,10 +28,11 @@ class BenchmarkConfig:
     model_variant: str
     prompt_version: str
     max_steps: int = 12
+    isolate_repositories: bool = True
 
 
 class BenchmarkRunner:
-    """Run a repeatable task set and persist one experiment record per task."""
+    """Run repeatable benchmark tasks with optional repository isolation."""
 
     def __init__(
         self,
@@ -42,9 +45,9 @@ class BenchmarkRunner:
         self.model_factory = model_factory
         self.logger = ExperimentLogger(log_path)
 
-    def run_task(self, task: BenchmarkTask) -> ExperimentRecord:
+    def _run_in_repo(self, task: BenchmarkTask, repo_path: Path) -> ExperimentRecord:
         model = self.model_factory()
-        agent = RepoGuardAgent(task.repo_path, model)
+        agent = RepoGuardAgent(str(repo_path), model)
 
         started = time.perf_counter()
         result = agent.repair(task.issue, max_steps=self.config.max_steps)
@@ -82,10 +85,26 @@ class BenchmarkRunner:
             proposals_rejected=proposals_rejected,
             human_intervention_required=bool(pending) or result.approval_required,
             latency_seconds=round(elapsed, 4),
-            metadata=task.metadata,
+            metadata={
+                **task.metadata,
+                "isolation_enabled": self.config.isolate_repositories,
+            },
         )
         self.logger.append(record)
         return record
+
+    def run_task(self, task: BenchmarkTask) -> ExperimentRecord:
+        source = Path(task.repo_path).resolve()
+        if not source.exists() or not source.is_dir():
+            raise FileNotFoundError(f"Benchmark repository not found: {source}")
+
+        if not self.config.isolate_repositories:
+            return self._run_in_repo(task, source)
+
+        with tempfile.TemporaryDirectory(prefix=f"repoguard-{task.task_id}-") as temp_dir:
+            destination = Path(temp_dir) / "repo"
+            shutil.copytree(source, destination)
+            return self._run_in_repo(task, destination)
 
     def run_suite(self, tasks: list[BenchmarkTask]) -> list[ExperimentRecord]:
         return [self.run_task(task) for task in tasks]
@@ -130,9 +149,7 @@ def summarize_records(records: list[ExperimentRecord]) -> dict[str, Any]:
         ),
         "avg_steps": round(statistics.mean(r.steps for r in records), 2),
         "avg_latency_seconds": round(
-            statistics.mean(
-                r.latency_seconds or 0.0 for r in records
-            ),
+            statistics.mean(r.latency_seconds or 0.0 for r in records),
             4,
         ),
         "human_intervention_rate": round(
@@ -145,10 +162,9 @@ def summarize_records(records: list[ExperimentRecord]) -> dict[str, Any]:
     }
 
 
-def write_summary(
-    records: list[ExperimentRecord],
-    path: str | Path,
-) -> dict[str, Any]:
+def write_summary(records: list[ExperimentRecord], path: str | Path) -> dict[str, Any]:
     summary = summarize_records(records)
-    Path(path).write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary
