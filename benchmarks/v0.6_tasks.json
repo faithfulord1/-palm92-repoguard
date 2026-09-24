@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "task_id": "logic-divide-001",
+      "repo_path": "examples/buggy_repo",
+      "issue": "The divide function returns the wrong result. divide(10, 2) should return 5.",
+      "metadata": {"language":"python","category":"logic_bug","difficulty":"easy"}
+    },
+    {
+      "task_id": "string-normalize-001",
+      "repo_path": "benchmarks/repos/string_normalize",
+      "issue": "normalize_name should trim surrounding whitespace and return lowercase text.",
+      "metadata": {"language":"python","category":"string_bug","difficulty":"easy"}
+    },
+    {
+      "task_id": "boundary-clamp-001",
+      "repo_path": "benchmarks/repos/boundary_clamp",
+      "issue": "clamp should return the lower bound when value is below it and the upper bound when value is above it.",
+      "metadata": {"language":"python","category":"boundary_bug","difficulty":"easy"}
+    },
+    {
+      "task_id": "boolean-access-001",
+      "repo_path": "benchmarks/repos/boolean_access",
+      "issue": "can_access should only return true when the user is active and has permission.",
+      "metadata": {"language":"python","category":"boolean_logic","difficulty":"easy"}
+    }
+  ]
+}
