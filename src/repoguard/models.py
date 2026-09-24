@@ -35,7 +35,7 @@ class TransformersGemmaAdapter:
 
     def __init__(
         self,
-        model_id: str = "google/gemma-4-12B-it",
+        model_id: str = "google/gemma-4-E4B-it",
         *,
         max_new_tokens: int = 700,
         temperature: float = 0.2,
