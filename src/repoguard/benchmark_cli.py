@@ -14,7 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("tasks", help="Path to benchmark tasks JSON")
     parser.add_argument("--backend", choices=("mock", "gemma"), default="mock")
-    parser.add_argument("--model-id", default="google/gemma-4-12B")
+    parser.add_argument("--model-id", default="google/gemma-4-12B-it")
     parser.add_argument("--variant", default="base")
     parser.add_argument("--experiment-id", default="baseline-v001")
     parser.add_argument("--prompt-version", default="v0.7")
