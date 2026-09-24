@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--model-id",
-        default="google/gemma-4-12B-it",
+        default="google/gemma-4-E4B-it",
         help="Hugging Face Gemma model id when --backend gemma is selected.",
     )
     parser.add_argument(
