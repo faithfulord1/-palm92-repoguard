@@ -83,9 +83,23 @@ Do not claim to have read files that have not been supplied.
             audit=self.audit.to_dict(),
         )
 
-    def repair(self, issue: str, *, max_steps: int = 12) -> RepairResult:
+    def repair(
+        self,
+        issue: str,
+        *,
+        max_steps: int = 12,
+        approval_policy: str = "manual",
+    ) -> RepairResult:
+        if approval_policy not in {"manual", "auto_low_risk"}:
+            raise ValueError("approval_policy must be manual or auto_low_risk")
+
         files = self.tools.list_files()
-        self.audit.record("repair_started", issue=issue, file_count=len(files))
+        self.audit.record(
+            "repair_started",
+            issue=issue,
+            file_count=len(files),
+            approval_policy=approval_policy,
+        )
         observations: list[dict[str, Any]] = []
         touched_files: list[str] = []
         last_tests: dict[str, object] | None = None
@@ -123,9 +137,26 @@ Rules:
             self.audit.record("model_action", step=step, raw=raw)
 
             try:
-                action = json.loads(raw)
+                cleaned = raw.strip()
+                if cleaned.startswith("'''json") or cleaned.startswith("'''"):
+                    cleaned = cleaned.strip("'").replace("json\n", "", 1).strip()
+                if cleaned.startswith("```json"):
+                    cleaned = cleaned[7:]
+                    if cleaned.endswith("```"):
+                        cleaned = cleaned[:-3]
+                    cleaned = cleaned.strip()
+                elif cleaned.startswith("```"):
+                    cleaned = cleaned[3:]
+                    if cleaned.endswith("```"):
+                        cleaned = cleaned[:-3]
+                    cleaned = cleaned.strip()
+                action = json.loads(cleaned)
             except json.JSONDecodeError:
-                observations.append({"type": "error", "message": "Invalid JSON action."})
+                observations.append({
+                    "type": "error",
+                    "message": "Invalid JSON action. Return one JSON object only.",
+                })
+                self.audit.record("invalid_model_json", step=step, raw=raw)
                 continue
 
             kind = action.get("action")
@@ -147,21 +178,44 @@ Rules:
                     str(action["content"]),
                     str(action.get("reason", "")),
                 )
-                approval_required = True
-                observation = {
-                    "type": "change_proposed",
-                    "proposal_id": proposal.proposal_id,
-                    "path": proposal.path,
-                    "risk": proposal.risk,
-                    "diff": proposal.diff,
-                    "message": "Change staged. Human approval is required before applying it.",
-                }
                 self.audit.record(
                     "change_proposed",
                     proposal_id=proposal.proposal_id,
                     path=proposal.path,
                     risk=proposal.risk,
                 )
+
+                if (
+                    approval_policy == "auto_low_risk"
+                    and proposal.risk["level"] == "normal"
+                ):
+                    approved = self.approvals.approve(proposal.proposal_id)
+                    if approved.path not in touched_files:
+                        touched_files.append(approved.path)
+                    observation = {
+                        "type": "change_auto_approved",
+                        "proposal_id": approved.proposal_id,
+                        "path": approved.path,
+                        "risk": approved.risk,
+                        "diff": approved.diff,
+                        "message": "Low-risk change auto-approved inside isolated benchmark copy.",
+                    }
+                    self.audit.record(
+                        "change_approved",
+                        proposal_id=approved.proposal_id,
+                        path=approved.path,
+                        policy="auto_low_risk",
+                    )
+                else:
+                    approval_required = True
+                    observation = {
+                        "type": "change_proposed",
+                        "proposal_id": proposal.proposal_id,
+                        "path": proposal.path,
+                        "risk": proposal.risk,
+                        "diff": proposal.diff,
+                        "message": "Change staged. Human approval is required before applying it.",
+                    }
             elif kind == "final":
                 status = str(action.get("status", "not_fixed"))
                 summary = str(action.get("summary", ""))
