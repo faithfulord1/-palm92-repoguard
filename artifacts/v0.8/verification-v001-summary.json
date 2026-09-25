@@ -1,0 +1,12 @@
+{
+  "tasks": 4,
+  "fixed": 4,
+  "fix_rate": 1.0,
+  "test_pass_rate": 1.0,
+  "avg_steps": 4.75,
+  "avg_latency_seconds": 133.1837,
+  "human_intervention_rate": 0.0,
+  "proposals_created": 4,
+  "proposals_approved": 4,
+  "proposals_rejected": 0
+}
