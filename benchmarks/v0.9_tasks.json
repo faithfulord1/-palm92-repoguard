@@ -1,0 +1,37 @@
+{
+  "tasks": [
+    {
+      "task_id": "invoice-rounding-001",
+      "repo_path": "benchmarks/repos/v0_9_invoice",
+      "issue": "Invoice totals are incorrect when a line has quantity greater than one and a percentage discount. Follow tests/test_invoice.py: compute each discounted line subtotal from unit price, quantity, and discount, round once per line with Decimal ROUND_HALF_UP, then sum the lines. Preserve the public invoice_total API.",
+      "metadata": {
+        "language": "python",
+        "category": "multi_module_decimal",
+        "difficulty": "medium",
+        "split": "development"
+      }
+    },
+    {
+      "task_id": "pagination-window-001",
+      "repo_path": "benchmarks/repos/v0_9_pagination",
+      "issue": "Pagination sometimes repeats or skips items near page boundaries. Inspect paginator.py and service.py and satisfy tests/test_pagination.py, including empty inputs, invalid page sizes and the final partial page. Preserve existing public API.",
+      "metadata": {
+        "language": "python",
+        "category": "multi_module_boundary",
+        "difficulty": "medium",
+        "split": "development"
+      }
+    },
+    {
+      "task_id": "permissions-inheritance-001",
+      "repo_path": "benchmarks/repos/v0_9_permissions",
+      "issue": "An access grant is incorrectly inherited across unrelated team branches and inactive users can access a resource. Inspect permissions.py and directory.py; correct effective_access without changing its public signature. Check tests/test_permissions.py and ensure a revoked grant always denies access.",
+      "metadata": {
+        "language": "python",
+        "category": "authorization_logic",
+        "difficulty": "medium",
+        "split": "development"
+      }
+    }
+  ]
+}
