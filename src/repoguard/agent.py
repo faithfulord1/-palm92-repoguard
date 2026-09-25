@@ -102,6 +102,9 @@ Do not claim to have read files that have not been supplied.
         )
         observations: list[dict[str, Any]] = []
         touched_files: list[str] = []
+        # Keep read history across the task to avoid burning the step budget
+        # repeatedly fetching unchanged source. Writes invalidate that history.
+        seen_reads: set[str] = set()
         last_tests: dict[str, object] | None = None
         approval_required = False
 
@@ -122,7 +125,8 @@ Rules:
 - After a write, use the test feedback immediately.
 - If tests pass, stop and report fixed.
 - If tests fail, inspect the failure and revise rather than repeating the same action.
-- You have a limited step budget, so avoid unnecessary list/search loops.
+- You have a limited step budget. Never reread an unchanged file; its content is already in the observations.
+- After inspecting implementation and tests, move to a concrete write or test action.
 - Never invent tool output.
 """
 
@@ -132,6 +136,8 @@ Rules:
                     "issue": issue,
                     "repository_files": files[:300],
                     "recent_observations": observations[-8:],
+                    "already_read_paths": sorted(seen_reads),
+                    "next_step_guidance": ("Do not reread any already_read_paths. You have inspected source and tests; propose the smallest fix or run tests." if len(seen_reads) >= 2 else "Read relevant source and tests only once."),
                     "touched_files": touched_files,
                 },
                 indent=2,
@@ -167,7 +173,16 @@ Rules:
                 observation = {"type": "list", "files": files[:300]}
             elif kind == "read":
                 path = str(action["path"])
-                observation = {"type": "read", "path": path, "content": self.tools.read_file(path)}
+                if path in seen_reads:
+                    observation = {
+                        "type": "repeated_read_blocked",
+                        "path": path,
+                        "message": "This unchanged file was already read. Use its prior content to propose a write or run tests; do not read it again.",
+                    }
+                    self.audit.record("repeated_read_blocked", step=step, path=path)
+                else:
+                    observation = {"type": "read", "path": path, "content": self.tools.read_file(path)}
+                    seen_reads.add(path)
             elif kind == "search":
                 query = str(action["query"])
                 observation = {"type": "search", "query": query, "hits": self.tools.search_text(query)}
@@ -195,6 +210,8 @@ Rules:
                     approved = self.approvals.approve(proposal.proposal_id)
                     if approved.path not in touched_files:
                         touched_files.append(approved.path)
+                    # A changed file may legitimately need rereading later.
+                    seen_reads.discard(approved.path)
                     observation = {
                         "type": "change_auto_approved",
                         "proposal_id": approved.proposal_id,
