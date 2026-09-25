@@ -91,3 +91,27 @@ def test_failed_post_write_test_is_returned_to_agent(tmp_path: Path):
     assert result.steps == 3
     assert result.tests is not None
     assert result.tests["returncode"] == 0
+
+
+def test_high_risk_change_requires_approval_even_in_auto_low_risk_mode(tmp_path: Path):
+    workflow = tmp_path / ".github" / "workflows"
+    workflow.mkdir(parents=True)
+    target = workflow / "deploy.yml"
+    target.write_text("name: original\n", encoding="utf-8")
+    model = ScriptedModelAdapter(
+        responses=[
+            '{"action":"read","path":".github/workflows/deploy.yml"}',
+            '{"action":"write","path":".github/workflows/deploy.yml","content":"name: changed\\n","reason":"deployment update"}',
+            '{"action":"final","status":"blocked","summary":"Awaiting human approval"}',
+        ]
+    )
+    agent = RepoGuardAgent(str(tmp_path), model)
+    result = agent.repair(
+        "Change deployment workflow",
+        max_steps=4,
+        approval_policy="auto_low_risk",
+    )
+    assert result.approval_required is True
+    assert target.read_text(encoding="utf-8") == "name: original\n"
+    assert len(agent.pending_changes()) == 1
+    assert agent.pending_changes()[0]["risk"]["level"] == "high"
