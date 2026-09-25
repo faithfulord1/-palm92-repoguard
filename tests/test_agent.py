@@ -131,7 +131,7 @@ def test_repeated_unchanged_read_is_blocked_and_agent_can_still_fix(tmp_path: Pa
             '{"action":"read","path":"app.py"}',
             '{"action":"read","path":"test_app.py"}',
             '{"action":"read","path":"app.py"}',
-            '{"action":"write","path":"app.py","content":"def add(a, b):\\\\n    return a + b\\\\n","reason":"Use addition"}',
+            '{"action":"write","path":"app.py","content":"def add(a, b):\\n    return a + b\\n","reason":"Use addition"}',
         ]
     )
     agent = RepoGuardAgent(str(tmp_path), model)
