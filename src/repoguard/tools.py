@@ -32,6 +32,15 @@ class RepoTools:
         target = self._safe(relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
+        # CPython may reuse a same-size .pyc when consecutive edits happen
+        # inside one filesystem timestamp tick. Invalidate only the touched
+        # module's cached bytecode so immediate post-write verification runs
+        # the new code, not a stale cached version.
+        if target.suffix == ".py":
+            cache_dir = target.parent / "__pycache__"
+            if cache_dir.is_dir():
+                for cached in cache_dir.glob(f"{target.stem}.*.pyc"):
+                    cached.unlink()
 
     def search_text(self, query: str, max_results: int = 50) -> list[dict[str, object]]:
         hits = []
