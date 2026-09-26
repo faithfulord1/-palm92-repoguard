@@ -1,0 +1,30 @@
+name: RepoGuard v0.9 CPU checks
+
+on:
+  push:
+    branches:
+      - v0.9-hard-benchmarks
+  pull_request:
+    paths:
+      - "benchmarks/v0.9_tasks.json"
+      - "benchmarks/repos/v0_9_*/**"
+      - "scripts/check_v0_9_fixtures.py"
+      - "scripts/run_v0_9_benchmark.py"
+      - ".github/workflows/v0_9_cpu_checks.yml"
+  workflow_dispatch:
+
+jobs:
+  cpu-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install RepoGuard test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: RepoGuard regression tests
+        run: python -m pytest -q
+      - name: Verify v0.9 benchmark fixtures have intentional failing tests
+        run: python scripts/check_v0_9_fixtures.py

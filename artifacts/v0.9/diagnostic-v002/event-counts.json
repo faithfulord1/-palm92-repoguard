@@ -1,0 +1,9 @@
+{
+  "repair_started": 1,
+  "model_action": 4,
+  "tool_observation": 3,
+  "change_proposed": 1,
+  "change_approved": 1,
+  "automatic_verification": 1,
+  "repair_finished": 1
+}
